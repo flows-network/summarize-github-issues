@@ -47,11 +47,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
     match payload {
         EventPayload::IssuesEvent(e) => {
-            send_message_to_channel(
-                "ik8",
-                "ch_in",
-                e.issue.clone().body.unwrap_or("".to_string()),
-            );
             if e.action != IssuesEventAction::Closed
                 && e.issue.body.unwrap_or("".to_string()).contains(&trigger)
             {
@@ -60,11 +55,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
         }
 
         EventPayload::IssueCommentEvent(e) => {
-            send_message_to_channel(
-                "ik8",
-                "ch_mid",
-                e.comment.clone().body.unwrap_or("".to_string()),
-            );
             if e.action != IssueCommentEventAction::Deleted
                 && e.comment.body.unwrap_or("".to_string()).contains(&trigger)
             {
@@ -132,8 +122,8 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
             system_prompt: Some(&system),
         };
 
-        // let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
-        // send_message_to_channel("ik8", "ch_in", check_text.clone());
+        let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
+        send_message_to_channel("ik8", "ch_in", check_text.clone());
 
         let total_tokens_count = feed_tokens_map.len();
         let mut _summary = "".to_string();
