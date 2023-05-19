@@ -1,47 +1,80 @@
 use dotenv::dotenv;
-use github_flows::{get_octo, GithubLogin::Provided};
+use github_flows::{
+    get_octo, listen_to_event,
+    octocrab::models::events::payload::{IssueCommentEventAction, IssuesEventAction},
+    EventPayload, GithubLogin,
+};
 use openai_flows::{
     chat::{ChatModel, ChatOptions},
     OpenAIFlows,
 };
-use slack_flows::{listen_to_channel, send_message_to_channel};
+use slack_flows::send_message_to_channel;
 use std::env;
 use tiktoken_rs::cl100k_base;
+
 #[no_mangle]
-pub fn run() {
+#[tokio::main(flavor = "current_thread")]
+pub async fn run() {
     dotenv().ok();
 
-    let trigger_word = env::var("trigger_word").unwrap_or("flows summarize".to_string());
-    let slack_workspace = env::var("slack_workspace").unwrap_or("secondstate".to_string());
-    let slack_channel = env::var("slack_channel").unwrap_or("github-status".to_string());
-
-    listen_to_channel(&slack_workspace, &slack_channel, |sm| {
-        handler(&trigger_word, &slack_workspace, &slack_channel, &sm)
-    });
-}
-
-#[tokio::main(flavor = "current_thread")]
-async fn handler(trigger: &str, workspace: &str, channel: &str, sm: &slack_flows::SlackMessage) {
     let github_login = env::var("github_login").unwrap_or("alabulei1".to_string());
     let github_owner = env::var("github_owner").unwrap_or("alabulei1".to_string());
     let github_repo = env::var("github_repo").unwrap_or("a-test".to_string());
+    let raw_trigger_word = env::var("trigger_word").unwrap_or("flows summarize".to_string());
+    let trigger_word = format!("@{github_login} {raw_trigger_word}");
 
-    let number = env::var("number").unwrap().parse::<u64>().unwrap_or(2445);
-    send_message_to_channel("ik8", "ch_in", sm.text.clone());
+    listen_to_event(
+        &GithubLogin::Default,
+        &github_owner,
+        &github_repo,
+        vec!["issues", "issue_comment"],
+        |payload| handler(&trigger_word, &github_owner, &github_repo, payload),
+    )
+    .await;
+}
 
-    if sm.text.to_lowercase().contains("flows") {
+async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) {
+    let slack_workspace = env::var("slack_workspace").unwrap_or("secondstate".to_string());
+    let slack_channel = env::var("slack_channel").unwrap_or("github-status".to_string());
+
+    // let github_owner = env::var("github_owner").unwrap_or("alabulei1".to_string());
+    // let github_repo = env::var("github_repo").unwrap_or("a-test".to_string());
+
+    // let n_days = env::var("number").unwrap().parse::<u64>().unwrap_or(2445);
+
+    let mut issue_number = 0u64;
+
+    match payload {
+        EventPayload::IssuesEvent(e) => {
+            if e.action != IssuesEventAction::Closed
+                && e.issue.body.unwrap_or("".to_string()).contains(&trigger)
+            {
+                issue_number = e.issue.number;
+            }
+        }
+
+        EventPayload::IssueCommentEvent(e) => {
+            if e.action != IssueCommentEventAction::Deleted
+                && e.comment.body.unwrap_or("".to_string()).contains(&trigger)
+            {
+                issue_number = e.issue.number;
+            }
+        }
+        _ => {}
+    }
+
+    if issue_number > 0 {
         let mut openai = OpenAIFlows::new();
         openai.set_retry_times(2);
 
-        let octocrab = get_octo(&Provided(github_login));
-        let issues_handle = octocrab.issues(&github_owner, &github_repo);
+        let octocrab = get_octo(&GithubLogin::Default);
+        let issues_handle = octocrab.issues(owner, repo);
+        let issue = issues_handle.get(issue_number).await.unwrap();
 
-        let issue = issues_handle.get(number).await.unwrap();
         let issue_creator_name = issue.user.login;
         let mut issue_creator_role = "".to_string();
         issue_creator_role = issue.author_association;
         let issue_title = issue.title;
-        let issue_number = issue.number;
         let issue_body = issue.body.unwrap_or("".to_string());
         let issue_url = issue.html_url;
         let labels = issue
@@ -62,7 +95,7 @@ async fn handler(trigger: &str, workspace: &str, channel: &str, sm: &slack_flows
         feed_tokens_map.append(&mut tokens);
         // feed_tokens_map.push_str(&issue_creator_input);
 
-        match issues_handle.list_comments(number).send().await {
+        match issues_handle.list_comments(issue_number).send().await {
             Ok(pages) => {
                 for comment in pages.items {
                     let comment_body = comment.body.unwrap();
@@ -89,12 +122,12 @@ async fn handler(trigger: &str, workspace: &str, channel: &str, sm: &slack_flows
         let total_tokens_count = feed_tokens_map.len();
         let mut _summary = "".to_string();
 
-        if total_tokens_count > 3000 {
+        if total_tokens_count > 2000 {
             let mut token_vec = feed_tokens_map;
             let mut map_out = "".to_string();
 
             while !token_vec.is_empty() {
-                let drain_to = std::cmp::min(token_vec.len(), 3000);
+                let drain_to = std::cmp::min(token_vec.len(), 2000);
                 let token_chunk = token_vec.drain(0..drain_to).collect::<Vec<_>>();
 
                 // let text_chunk = token_chunk.join(" ");
@@ -139,6 +172,6 @@ async fn handler(trigger: &str, workspace: &str, channel: &str, sm: &slack_flows
         }
 
         let text = format!("Issue Summary:\n{}\n{}", _summary, issue_url);
-        send_message_to_channel(&workspace, &channel, text);
+        send_message_to_channel(&slack_workspace, &slack_channel, text);
     }
 }
