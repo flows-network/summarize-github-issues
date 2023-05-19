@@ -41,30 +41,30 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
     // let github_repo = env::var("github_repo").unwrap_or("a-test".to_string());
 
     // let n_days = env::var("number").unwrap().parse::<u64>().unwrap_or(2445);
-    send_message_to_channel("ik8", "ch_in", trigger.to_string());
+    // send_message_to_channel("ik8", "ch_in", trigger.to_string());
 
     let mut issue_number = 0u64;
 
     match payload {
         EventPayload::IssuesEvent(e) => {
             if e.action != IssuesEventAction::Closed
-            //     && e.issue.body.unwrap_or("".to_string()).contains(&trigger)
+                && e.issue.body.unwrap_or("".to_string()).contains(&trigger)
             {
-            issue_number = e.issue.number;
+                issue_number = e.issue.number;
             }
         }
 
         EventPayload::IssueCommentEvent(e) => {
             if e.action != IssueCommentEventAction::Deleted
-            //     && e.comment.body.unwrap_or("".to_string()).contains(&trigger)
+                && e.comment.body.unwrap_or("".to_string()).contains(&trigger)
             {
-            issue_number = e.issue.number;
+                issue_number = e.issue.number;
             }
         }
         _ => {}
     }
 
-    send_message_to_channel("ik8", "ch_in", issue_number.to_string());
+    // send_message_to_channel("ik8", "ch_in", issue_number.to_string());
 
     if issue_number > 0 {
         let mut openai = OpenAIFlows::new();
@@ -107,7 +107,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
                     let mut tokens = bpe.encode_ordinary(&commenter_input);
                     feed_tokens_map.append(&mut tokens);
                     // feed_tokens_map.push_str(&commenter_input);
-
                 }
             }
 
@@ -125,7 +124,7 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
         // let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
         // send_message_to_channel("ik8", "ch_in", check_text.clone());
-   
+
         let total_tokens_count = feed_tokens_map.len();
         let mut _summary = "".to_string();
 
@@ -139,9 +138,10 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
                 // let text_chunk = token_chunk.join(" ");
                 let text_chunk = bpe.decode(token_chunk).unwrap();
-                send_message_to_channel("ik8", "ch_mid", text_chunk.clone());
+                send_message_to_channel("ik8", "ch_mid", "************************************************".to_string());
 
                 let map_question = format!("The issue is titled {issue_title}, with one chunk of the body text or comment text {text_chunk}. Please focus on the main points of the comment, any proposed solutions, and any consensus or disagreements among the commenters. Please summarize key information in this section.");
+                send_message_to_channel("ik8", "ch_mid", map_question.clone());
 
                 match openai.chat_completion(&chat_id, &map_question, &co).await {
                     Ok(r) => {
