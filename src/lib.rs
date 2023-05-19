@@ -48,17 +48,21 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
     match payload {
         EventPayload::IssuesEvent(e) => {
             if e.action != IssuesEventAction::Closed
-                && e.issue.body.unwrap_or("".to_string()).contains(&trigger)
+                && e.issue.clone().body.unwrap_or("".to_string()).contains(&trigger)
             {
                 issue_number = e.issue.number;
+
+             send_message_to_channel("ik8", "ch_in", e.issue.body.unwrap_or("".to_string()));
             }
         }
 
         EventPayload::IssueCommentEvent(e) => {
             if e.action != IssueCommentEventAction::Deleted
-                && e.comment.body.unwrap_or("".to_string()).contains(&trigger)
+                && e.comment.clone().body.unwrap_or("".to_string()).contains(&trigger)
             {
                 issue_number = e.issue.number;
+                send_message_to_channel("ik8", "ch_mid", e.comment.body.unwrap_or("".to_string()));
+
             }
         }
         _ => {}
