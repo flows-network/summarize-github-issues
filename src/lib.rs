@@ -46,19 +46,19 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
     match payload {
         EventPayload::IssuesEvent(e) => {
-            // if e.action != IssuesEventAction::Closed
+            if e.action != IssuesEventAction::Closed
             //     && e.issue.body.unwrap_or("".to_string()).contains(&trigger)
-            // {
+            {
             issue_number = e.issue.number;
-            // }
+            }
         }
 
         EventPayload::IssueCommentEvent(e) => {
-            // if e.action != IssueCommentEventAction::Deleted
+            if e.action != IssueCommentEventAction::Deleted
             //     && e.comment.body.unwrap_or("".to_string()).contains(&trigger)
-            // {
+            {
             issue_number = e.issue.number;
-            // }
+            }
         }
         _ => {}
     }
@@ -91,8 +91,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
         // let mut feed_tokens_map = String::new();
         let mut feed_tokens_map = Vec::new();
 
-        // send_message_to_channel("ik8", "ch_in", issue_body.clone());
-
         let issue_creator_input = format!("issue creator {issue_creator_name} has role {issue_creator_role}, filed the issue titled {issue_title}, with labels {labels}, posting: {issue_body}");
 
         let mut tokens = bpe.encode_ordinary(&issue_creator_input);
@@ -109,7 +107,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
                     feed_tokens_map.append(&mut tokens);
                     // feed_tokens_map.push_str(&commenter_input);
 
-                    // send_message_to_channel("ik8", "ch_mid", comment_body.clone());
                 }
             }
 
@@ -125,8 +122,8 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
             system_prompt: Some(&system),
         };
 
-        let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
-        send_message_to_channel("ik8", "ch_in", check_text.clone());
+        // let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
+        // send_message_to_channel("ik8", "ch_in", check_text.clone());
    
         let total_tokens_count = feed_tokens_map.len();
         let mut _summary = "".to_string();
