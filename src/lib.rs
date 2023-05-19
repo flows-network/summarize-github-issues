@@ -46,19 +46,19 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
     match payload {
         EventPayload::IssuesEvent(e) => {
-            if e.action != IssuesEventAction::Closed
-                && e.issue.body.unwrap_or("".to_string()).contains(&trigger)
-            {
+            // if e.action != IssuesEventAction::Closed
+            //     && e.issue.body.unwrap_or("".to_string()).contains(&trigger)
+            // {
                 issue_number = e.issue.number;
-            }
+            // }
         }
 
         EventPayload::IssueCommentEvent(e) => {
-            if e.action != IssueCommentEventAction::Deleted
-                && e.comment.body.unwrap_or("".to_string()).contains(&trigger)
-            {
+            // if e.action != IssueCommentEventAction::Deleted
+            //     && e.comment.body.unwrap_or("".to_string()).contains(&trigger)
+            // {
                 issue_number = e.issue.number;
-            }
+            // }
         }
         _ => {}
     }
