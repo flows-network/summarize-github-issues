@@ -41,7 +41,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
     // let github_repo = env::var("github_repo").unwrap_or("a-test".to_string());
 
     // let n_days = env::var("number").unwrap().parse::<u64>().unwrap_or(2445);
-    // send_message_to_channel("ik8", "ch_in", trigger.to_string());
 
     let mut issue_number = 0u64;
 
@@ -68,7 +67,7 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
     if issue_number > 0 {
         let mut openai = OpenAIFlows::new();
-        openai.set_retry_times(2);
+        openai.set_retry_times(3);
 
         let octocrab = get_octo(&GithubLogin::Default);
         let issues_handle = octocrab.issues(owner, repo);
@@ -119,33 +118,27 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
         let co = ChatOptions {
             model: ChatModel::GPT35Turbo,
             restart: true,
-            system_prompt: Some(&system),
+            system_prompt: Some(system),
         };
 
-        let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
-        send_message_to_channel("ik8", "ch_in", check_text.clone());
+        // let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
+        // send_message_to_channel("ik8", "ch_in", check_text.clone());
 
         let total_tokens_count = feed_tokens_map.len();
         let mut _summary = "".to_string();
 
-        if total_tokens_count > 2000 {
+        if total_tokens_count > 1000 {
             let mut token_vec = feed_tokens_map;
             let mut map_out = "".to_string();
 
             while !token_vec.is_empty() {
-                let drain_to = std::cmp::min(token_vec.len(), 2000);
+                let drain_to = std::cmp::min(token_vec.len(), 1000);
                 let token_chunk = token_vec.drain(0..drain_to).collect::<Vec<_>>();
 
                 // let text_chunk = token_chunk.join(" ");
                 let text_chunk = bpe.decode(token_chunk).unwrap();
-                send_message_to_channel(
-                    "ik8",
-                    "ch_mid",
-                    "************************************************".to_string(),
-                );
 
                 let map_question = format!("The issue is titled {issue_title}, with one chunk of the body text or comment text {text_chunk}. Please focus on the main points of the comment, any proposed solutions, and any consensus or disagreements among the commenters. Please summarize key information in this section.");
-                send_message_to_channel("ik8", "ch_mid", map_question.clone());
 
                 match openai.chat_completion(&chat_id, &map_question, &co).await {
                     Ok(r) => {
@@ -177,6 +170,8 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
             match openai.chat_completion(&chat_id, &question, &co).await {
                 Ok(r) => {
                     _summary = r.choice;
+                    send_message_to_channel(&slack_workspace, &slack_channel, _summary.clone());
+
                 }
                 Err(_e) => {}
             }
@@ -184,6 +179,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
         }
 
         let text = format!("Issue Summary:\n{}\n{}", _summary, issue_url);
-        send_message_to_channel(&slack_workspace, &slack_channel, text);
+        // send_message_to_channel(&slack_workspace, &slack_channel, text);
     }
 }
