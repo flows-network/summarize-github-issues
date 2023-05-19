@@ -47,22 +47,28 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
     match payload {
         EventPayload::IssuesEvent(e) => {
+            send_message_to_channel(
+                "ik8",
+                "ch_in",
+                e.issue.clone().body.unwrap_or("".to_string()),
+            );
             if e.action != IssuesEventAction::Closed
-                && e.issue.clone().body.unwrap_or("".to_string()).contains(&trigger)
+                && e.issue.body.unwrap_or("".to_string()).contains(&trigger)
             {
                 issue_number = e.issue.number;
-
-             send_message_to_channel("ik8", "ch_in", e.issue.body.unwrap_or("".to_string()));
             }
         }
 
         EventPayload::IssueCommentEvent(e) => {
+            send_message_to_channel(
+                "ik8",
+                "ch_mid",
+                e.comment.clone().body.unwrap_or("".to_string()),
+            );
             if e.action != IssueCommentEventAction::Deleted
-                && e.comment.clone().body.unwrap_or("".to_string()).contains(&trigger)
+                && e.comment.body.unwrap_or("".to_string()).contains(&trigger)
             {
                 issue_number = e.issue.number;
-                send_message_to_channel("ik8", "ch_mid", e.comment.body.unwrap_or("".to_string()));
-
             }
         }
         _ => {}
@@ -142,7 +148,11 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
                 // let text_chunk = token_chunk.join(" ");
                 let text_chunk = bpe.decode(token_chunk).unwrap();
-                send_message_to_channel("ik8", "ch_mid", "************************************************".to_string());
+                send_message_to_channel(
+                    "ik8",
+                    "ch_mid",
+                    "************************************************".to_string(),
+                );
 
                 let map_question = format!("The issue is titled {issue_title}, with one chunk of the body text or comment text {text_chunk}. Please focus on the main points of the comment, any proposed solutions, and any consensus or disagreements among the commenters. Please summarize key information in this section.");
                 send_message_to_channel("ik8", "ch_mid", map_question.clone());
