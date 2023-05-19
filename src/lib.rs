@@ -91,8 +91,7 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
         // let mut feed_tokens_map = String::new();
         let mut feed_tokens_map = Vec::new();
 
-        let head = issue_body.chars().take(100).collect::<String>();
-        send_message_to_channel("ik8", "ch_in", head);
+        send_message_to_channel("ik8", "ch_in", issue_body.clone());
 
         let issue_creator_input = format!("issue creator {issue_creator_name} has role {issue_creator_role}, filed the issue titled {issue_title}, with labels {labels}, posting: {issue_body}");
 
@@ -109,9 +108,8 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
                     let mut tokens = bpe.encode_ordinary(&commenter_input);
                     feed_tokens_map.append(&mut tokens);
                     // feed_tokens_map.push_str(&commenter_input);
-                    let head = comment_body.chars().take(100).collect::<String>();
      
-                    send_message_to_channel("ik8", "ch_mid", head);
+                    send_message_to_channel("ik8", "ch_mid", comment_body.clone());
 
                 }
             }
