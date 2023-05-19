@@ -88,14 +88,14 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
         let bpe = cl100k_base().unwrap();
 
-        // let mut feed_tokens_map = String::new();
-        let mut feed_tokens_map = Vec::new();
+        let mut feed_tokens_map = String::new();
+        // let mut feed_tokens_map = Vec::new();
 
         let issue_creator_input = format!("issue creator {issue_creator_name} has role {issue_creator_role}, filed the issue titled {issue_title}, with labels {labels}, posting: {issue_body}");
 
         let mut tokens = bpe.encode_ordinary(&issue_creator_input);
-        feed_tokens_map.append(&mut tokens);
-        // feed_tokens_map.push_str(&issue_creator_input);
+        // feed_tokens_map.append(&mut tokens);
+        feed_tokens_map.push_str(&issue_creator_input);
 
         match issues_handle.list_comments(issue_number).send().await {
             Ok(pages) => {
@@ -104,8 +104,8 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
                     let commenter = comment.user.login;
                     let commenter_input = format!("{commenter} commented: {comment_body}");
                     let mut tokens = bpe.encode_ordinary(&commenter_input);
-                    feed_tokens_map.append(&mut tokens);
-                    // feed_tokens_map.push_str(&commenter_input);
+                    // feed_tokens_map.append(&mut tokens);
+                    feed_tokens_map.push_str(&commenter_input);
                 }
             }
 
@@ -124,19 +124,19 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
         // let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
         // send_message_to_channel("ik8", "ch_in", check_text.clone());
 
-        let total_tokens_count = feed_tokens_map.len();
+        let total_tokens_count = feed_tokens_map.split_whitespace().count();
         let mut _summary = "".to_string();
 
         if total_tokens_count > 1000 {
-            let mut token_vec = feed_tokens_map;
+            let mut token_vec = feed_tokens_map.split_whitespace().collect::<Vec<_>>();
             let mut map_out = "".to_string();
 
             while !token_vec.is_empty() {
                 let drain_to = std::cmp::min(token_vec.len(), 1000);
                 let token_chunk = token_vec.drain(0..drain_to).collect::<Vec<_>>();
 
-                // let text_chunk = token_chunk.join(" ");
-                let text_chunk = bpe.decode(token_chunk).unwrap();
+                let text_chunk = token_chunk.join(" ");
+                // let text_chunk = bpe.decode(token_chunk).unwrap();
 
                 let map_question = format!("The issue is titled {issue_title}, with one chunk of the body text or comment text {text_chunk}. Please focus on the main points of the comment, any proposed solutions, and any consensus or disagreements among the commenters. Please summarize key information in this section.");
 
@@ -162,8 +162,8 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
             }
             send_message_to_channel("ik8", "ch_out", _summary.clone());
         } else {
-            // let issue_body = feed_tokens_map;
-            let issue_body = bpe.decode(feed_tokens_map).unwrap();
+            let issue_body = feed_tokens_map;
+            // let issue_body = bpe.decode(feed_tokens_map).unwrap();
 
             let question = format!("{issue_body}, please focus on the main points of the comments, any proposed solutions, and any consensus or disagreements among the commenters. Please make a concise summary for this issue to facilitate the next action.");
 
@@ -171,7 +171,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
                 Ok(r) => {
                     _summary = r.choice;
                     send_message_to_channel(&slack_workspace, &slack_channel, _summary.clone());
-
                 }
                 Err(_e) => {}
             }
