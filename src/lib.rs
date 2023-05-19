@@ -99,9 +99,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
         feed_tokens_map.append(&mut tokens);
         // feed_tokens_map.push_str(&issue_creator_input);
 
-        let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
-        send_message_to_channel("ik8", "ch_in", check_text.clone());
-
         match issues_handle.list_comments(issue_number).send().await {
             Ok(pages) => {
                 for comment in pages.items {
@@ -112,7 +109,7 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
                     feed_tokens_map.append(&mut tokens);
                     // feed_tokens_map.push_str(&commenter_input);
 
-                    send_message_to_channel("ik8", "ch_mid", comment_body.clone());
+                    // send_message_to_channel("ik8", "ch_mid", comment_body.clone());
                 }
             }
 
@@ -128,6 +125,9 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
             system_prompt: Some(&system),
         };
 
+        let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
+        send_message_to_channel("ik8", "ch_in", check_text.clone());
+   
         let total_tokens_count = feed_tokens_map.len();
         let mut _summary = "".to_string();
 
