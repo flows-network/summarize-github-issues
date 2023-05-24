@@ -1,3 +1,4 @@
+use dotenv::dotenv;
 use github_flows::{
     get_octo, listen_to_event,
     octocrab::models::events::payload::{IssueCommentEventAction, IssuesEventAction},
@@ -9,7 +10,6 @@ use openai_flows::{
     OpenAIFlows,
 };
 use slack_flows::send_message_to_channel;
-use dotenv::dotenv;
 use std::env;
 use tiktoken_rs::cl100k_base;
 
@@ -44,7 +44,11 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
     match payload {
         EventPayload::IssuesEvent(e) => {
             if e.action != IssuesEventAction::Closed
-                && e.issue.clone().body.unwrap_or("".to_string()).contains(&trigger)
+                && e.issue
+                    .clone()
+                    .body
+                    .unwrap_or("".to_string())
+                    .contains(&trigger)
             {
                 issue = Some(e.issue);
             }
@@ -52,15 +56,17 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
 
         EventPayload::IssueCommentEvent(e) => {
             if e.action != IssueCommentEventAction::Deleted
-                && e.comment.clone().body.unwrap_or("".to_string()).contains(&trigger)
+                && e.comment
+                    .clone()
+                    .body
+                    .unwrap_or("".to_string())
+                    .contains(&trigger)
             {
                 issue = Some(e.issue);
             }
         }
         _ => {}
     }
-
-    // send_message_to_channel("ik8", "ch_in", issue_number.to_string());
 
     if let Some(issue) = issue {
         let mut openai = OpenAIFlows::new();
@@ -115,18 +121,15 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
             system_prompt: Some(system),
         };
 
-        let check_text = bpe.decode(feed_tokens_map.clone()).unwrap();
-        send_message_to_channel("ik8", "ch_in", check_text.clone());
-
         let total_tokens_count = feed_tokens_map.len();
         let mut _summary = "".to_string();
 
-        if total_tokens_count > 2000 {
+        if total_tokens_count > 2800 {
             let mut token_vec = feed_tokens_map;
             let mut map_out = "".to_string();
 
             while !token_vec.is_empty() {
-                let drain_to = std::cmp::min(token_vec.len(), 2000);
+                let drain_to = std::cmp::min(token_vec.len(), 2800);
                 let token_chunk = token_vec.drain(0..drain_to).collect::<Vec<_>>();
 
                 let text_chunk = bpe.decode(token_chunk).unwrap();
@@ -136,7 +139,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
                 match openai.chat_completion(&chat_id, &map_question, &co).await {
                     Ok(r) => {
                         map_out.push_str(&r.choice);
-                        send_message_to_channel("ik8", "ch_mid", r.choice);
                     }
                     Err(_e) => {}
                 }
@@ -153,7 +155,6 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
                 }
                 Err(_e) => {}
             }
-            send_message_to_channel("ik8", "ch_out", _summary.clone());
         } else {
             let issue_body = bpe.decode(feed_tokens_map).unwrap();
 
@@ -162,11 +163,9 @@ async fn handler(trigger: &str, owner: &str, repo: &str, payload: EventPayload) 
             match openai.chat_completion(&chat_id, &question, &co).await {
                 Ok(r) => {
                     _summary = r.choice;
-                    send_message_to_channel(&slack_workspace, &slack_channel, _summary.clone());
                 }
                 Err(_e) => {}
             }
-            send_message_to_channel("ik8", "ch_out", _summary.clone());
         }
 
         let text = format!("Issue Summary:\n{}\n{}", _summary, issue_url);
