@@ -18,18 +18,16 @@ use tiktoken_rs::cl100k_base;
 pub async fn run() {
     dotenv().ok();
 
-    let _github_login = env::var("github_login").unwrap_or("alabulei1".to_string());
     let github_owner = env::var("github_owner").unwrap_or("alabulei1".to_string());
     let github_repo = env::var("github_repo").unwrap_or("a-test".to_string());
-    let raw_trigger_word = env::var("trigger_word").unwrap_or("flows summarize".to_string());
-    let trigger_word = format!("@{_github_login} {raw_trigger_word}");
+    let trigger_phrase = env::var("trigger_phrase").unwrap_or("issue summarize".to_string());
 
     listen_to_event(
         &Default,
         &github_owner,
         &github_repo,
         vec!["issues", "issue_comment"],
-        |payload| handler(&trigger_word, &github_owner, &github_repo, payload),
+        |payload| handler(&trigger_phrase, &github_owner, &github_repo, payload),
     )
     .await;
 }
